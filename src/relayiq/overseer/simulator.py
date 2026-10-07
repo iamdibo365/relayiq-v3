@@ -26,7 +26,9 @@ Persona: {persona}
 Your goal: {goal}
 Rules: speak like a real person on the phone (one or two short sentences). Only say what the caller
 would say. Answer the agent's questions using your persona details. When your goal is achieved or
-clearly impossible, or the agent says they're transferring you or says goodbye, reply with exactly [END]."""
+clearly impossible, or the agent says it is connecting you to a human staff member, or says goodbye, reply
+with exactly [END]. Do not end just because the agent read details back: answer the question it asked
+(e.g. confirm with "Yes, please book it") and wait until it says the action is done."""
 
 
 @dataclass
@@ -82,15 +84,22 @@ async def simulate(platform: "Platform", scenario: Scenario, sandbox: Database,
     escalated = False
     try:
         for _ in range(max_turns):
-            reply = await caller_llm.ainvoke(caller_msgs)
-            said = (reply.text or "").strip()
+            said = ""
+            for _attempt in range(2):  # reasoning models occasionally return an empty message
+                reply = await caller_llm.ainvoke(caller_msgs)
+                said = (reply.text or "").strip()
+                if said:
+                    break
             if not said or "[END]" in said:
                 break
             caller_msgs.append(AIMessage(said))
             transcript.append({"role": "caller", "text": said})
             act = watchdog.on_user(said)
             if act.kind != "none":
-                transcript.append({"role": "agent", "text": act.say})
+                transcript.append({"role": "agent", "text": act.say, "agent": "watchdog"})
+                # Same as live calls: the watchdog transfers the call deterministically (Twilio <Dial>).
+                ctx.tool_log.append({"agent": "watchdog", "tool": "transfer_to_human", "decision": "executed",
+                                     "args": {}, "result": {"ok": True, "reason": act.reason}})
                 escalated = True
                 break
             text = ""

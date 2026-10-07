@@ -46,7 +46,7 @@ button{background:var(--accent);color:#04121f;border:0;border-radius:8px;padding
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const chip=(t,c)=>`<span class="chip ${c||''}">${esc(t)}</span>`;
-const stat=s=>chip(s,{active:'ok',executed:'ok',booked:'ok',passed:'ok',denied:'bad',inactive:'bad',rejected:'bad',failed:'bad',pending:'warn',pending_insurance:'warn',testing:'warn',unverified:'warn',error:'bad'}[s]);
+const stat=s=>chip(s,{active:'ok',executed:'ok',booked:'ok',passed:'ok',denied:'bad',failed:'bad',inactive:'bad',rejected:'bad',failed:'bad',pending:'warn',pending_insurance:'warn',testing:'warn',unverified:'warn',error:'bad'}[s]);
 function table(rows,cols){if(!rows.length)return '<div class="empty">Nothing yet</div>';
  return `<table><tr>${cols.map(c=>`<th>${c[0]}</th>`).join('')}</tr>${rows.map(r=>`<tr>${cols.map(c=>`<td>${c[1](r)}</td>`).join('')}</tr>`).join('')}</table>`}
 async function refresh(){

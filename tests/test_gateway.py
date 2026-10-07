@@ -88,3 +88,13 @@ async def test_clearinghouse_error_is_recorded(ctx, settings):
     res = await p.gateway.invoke(c, "scheduling", "verify_insurance", {})
     row = p.db.one("SELECT summary, details FROM insurance_checks WHERE id=?", (res["check_id"],))
     assert "HTTP 400" in row["summary"] and "Invalid NPI" in row["details"]
+
+
+async def test_tool_that_runs_but_cannot_act_is_logged_as_failed_not_executed(ctx):
+    p, c = ctx
+    await p.gateway.invoke(c, "front_desk", "verify_identity",
+                           {"first_name": "John", "last_name": "Doe", "date_of_birth": "1980-04-12"})
+    res = await p.gateway.invoke(c, "billing", "send_payment_link", {"caller_confirmed": True})
+    assert res["ok"] is False  # BILLING_PORTAL_URL not configured
+    row = p.db.one("SELECT decision, minutes_saved FROM ledger WHERE tool='send_payment_link'")
+    assert row["decision"] == "failed" and row["minutes_saved"] == 0

@@ -111,9 +111,11 @@ class ToolGateway:
                 if key in ctx.executed:
                     return json.loads(ctx.executed[key]) | {"note": "already done earlier in this call"}
             result = await tool.fn(ctx, args)
-            if key:
+            succeeded = not (isinstance(result, dict) and result.get("ok") is False)
+            if key and succeeded:
                 ctx.executed[key] = json.dumps(result)
-            self._ledger(ctx, agent, tool, "executed", args, result,
+            # "failed" = the tool ran but couldn't do the thing (slot taken, feature not configured)
+            self._ledger(ctx, agent, tool, "executed" if succeeded else "failed", args, result,
                          int((time.perf_counter() - started) * 1000))
             return result
         except GatewayDenied as e:
