@@ -32,7 +32,7 @@ class Platform:
                  model_factory: Callable | None = None, tts=None,
                  transcriber_factory: Callable | None = None, journey: JourneyClient | None = None,
                  twilio: TwilioAPI | None = None, eligibility: StediEligibilityClient | None = None,
-                 portal: PayerPortalAgent | None = None):
+                 portal: PayerPortalAgent | None = None, realtime_factory: Callable | None = None):
         self.settings = settings
         self.db = db or Database(settings.db_file)
         seed(self.db, settings.clinic_timezone)
@@ -45,6 +45,7 @@ class Platform:
         self.transcriber_factory = transcriber_factory or (lambda: OpenAIRealtimeTranscriber(
             settings, prompt="Medical clinic phone call: appointments, insurance (Cigna, "
                              "UnitedHealthcare, Aetna), refills, billing."))
+        self.realtime_factory = realtime_factory  # VOICE_MODE=s2s; None = real OpenAI Realtime
         self.journey = journey or JourneyClient(settings.mcp_url)
         self.eligibility = eligibility or StediEligibilityClient(settings)
         self.portal = portal or PayerPortalAgent(

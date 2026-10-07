@@ -17,7 +17,7 @@ async def test_handoff_runs_specialist_in_same_turn_with_scoped_tools(make_platf
     text = "".join(e.value for e in events if e.kind == "text")
     assert "scheduling" in text and "date of birth" in text
     # specialist prompt carries handoff reason and its own tool scope
-    sys_prompt = p._test_model.seen[-1][0].content
+    sys_prompt = p._test_model.seen[-1][0].text
     assert "wants an appointment" in sys_prompt and "Active agent: scheduling" in sys_prompt
     assert orch.history[-1].content.startswith("Let me get scheduling")
 
@@ -32,3 +32,16 @@ async def test_unverified_specialist_cannot_reach_phi(make_platform):
     orch = Orchestrator(ctx, p.gateway, p.registry, p.settings, p.model_factory)
     _ = [e async for e in orch.respond("what's my balance")]
     assert ctx.tool_log[0]["decision"] == "denied"
+
+
+async def test_caller_id_history_not_shown_when_a_different_patient_verifies(make_platform):
+    p = make_platform()
+    ctx = CallContext("CA9", "+15555550101", p.db, p.settings, services=p.services())
+    ctx.caller_id_match = p.db.patient_by_phone("+15555550101")          # John's phone
+    ctx.journey = "JOHN-PRIVATE-HISTORY"
+    ctx.patient = p.db.one("SELECT * FROM patients WHERE id='pt_1004'")  # Jane verifies
+    ctx.verified = True
+    orch = Orchestrator(ctx, p.gateway, p.registry, p.settings, p.model_factory)
+    assert "JOHN-PRIVATE-HISTORY" not in orch.system_prompt(p.registry.get("front_desk"))
+    ctx.patient = ctx.caller_id_match                                      # John verifies
+    assert "JOHN-PRIVATE-HISTORY" in orch.system_prompt(p.registry.get("front_desk"))

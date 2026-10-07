@@ -17,6 +17,7 @@ from pydantic import BaseModel
 from .config import get_settings
 from .overseer.sentinel import load_scenarios, run_gate
 from .platform import Platform
+from .voice.s2s_session import S2SCallSession
 from .voice.session import CallSession
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -70,7 +71,9 @@ def create_app(platform: Platform | None = None) -> FastAPI:
     @app.websocket("/twilio/media")
     async def twilio_media(ws: WebSocket):
         await ws.accept()
-        session = CallSession(ws, P())
+        platform = P()
+        cls = S2SCallSession if platform.settings.voice_mode == "s2s" else CallSession
+        session = cls(ws, platform)
         try:
             await session.run()
         except PermissionError:

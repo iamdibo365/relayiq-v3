@@ -32,6 +32,9 @@ class CallContext:
     tool_log: list[dict[str, Any]] = field(default_factory=list)  # for Overseer grading
     services: dict[str, Any] = field(default_factory=dict)  # insurance, sms, forge, kb ...
     on_event: Callable[[str, dict], None] | None = None
+    # Set while a turn runs on a PARTIAL transcript; resolves True/False when the final transcript
+    # confirms or contradicts it. Nothing the caller can hear or that changes data happens before.
+    speculation_gate: Any = None
 
     def emit(self, kind: str, data: dict) -> None:
         if self.on_event:

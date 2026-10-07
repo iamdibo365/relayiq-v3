@@ -23,10 +23,21 @@ def test_frames_are_20ms():
     assert [len(f) for f in frames(b"\x00" * 400)] == [160, 160, 80]
 
 
-def test_chunker_waits_for_first_long_enough_sentence_and_skips_abbrev():
+def test_chunker_sends_a_short_first_sentence_immediately_and_skips_abbrev():
     c = SentenceChunker()
     out = []
-    for t in ["Sure. ", "I can help. You're with Dr. ", "Chen at 9 a.m. tomorrow. Anything ", "else?"]:
+    for t in ["Got it. ", "You're with Dr. ", "Chen at 9 a.m. tomorrow. Anything ", "else?"]:
         out += c.push(t)
     out += c.flush()
-    assert out == ["Sure. I can help.", "You're with Dr. Chen at 9 a.m. tomorrow.", "Anything else?"]
+    assert out == ["Got it.", "You're with Dr. Chen at 9 a.m. tomorrow.", "Anything else?"]
+
+
+def test_chunker_first_chunk_can_be_a_clause():
+    c = SentenceChunker()
+    assert c.push("Sure, let me pull up the schedule, ") == ["Sure, let me pull up the schedule,"]
+    assert c.push("and check Dr. Chen's mornings") == []  # later chunks wait for a full sentence
+
+
+def test_chunker_does_not_emit_tiny_fragments_first():
+    c = SentenceChunker()
+    assert c.push("Ok. ") == []  # under 6 chars: wait for more

@@ -11,6 +11,7 @@ Every call goes through one policy chokepoint:
 
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 import time
@@ -94,6 +95,12 @@ class ToolGateway:
 
     async def invoke(self, ctx: CallContext, agent: str, name: str, args: dict[str, Any]) -> dict:
         tool = self.tools[name]
+        gate = ctx.speculation_gate
+        if tool.scope != "read" and gate is not None and not gate.done():
+            # Turn started on a partial transcript: reads may run early, anything else waits for
+            # the final transcript and is abandoned if the caller actually said something else.
+            if not await gate:
+                raise asyncio.CancelledError("speculative turn discarded")
         started = time.perf_counter()
         try:
             if tool.requires_verified and not ctx.verified:

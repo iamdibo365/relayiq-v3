@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     specialist_model: str = "claude-haiku-4-5"
     reasoning_model: str = "claude-sonnet-5-5"
     sim_caller_model: str = "gpt-5.4-mini"
-    stt_model: str = "gpt-4o-transcribe"
+    stt_model: str = "gpt-4o-mini-transcribe"
     tts_model: str = "gpt-4o-mini-tts"
     tts_voice: str = "marin"
     openai_realtime_url: str = "wss://api.openai.com/v1/realtime?intent=transcription"
@@ -52,6 +52,10 @@ class Settings(BaseSettings):
     db_path: str = "data/relayiq.db"
     mcp_url: str = "http://127.0.0.1:8765/mcp"
     latency_slo_ms: int = 1500
+    speculative_turns: bool = True  # start the LLM on the partial transcript (audio/actions wait for final)
+    voice_mode: str = "chained"  # chained (STT -> Claude -> TTS) | s2s (OpenAI realtime front door)
+    realtime_model: str = "gpt-realtime"
+    realtime_url: str = "wss://api.openai.com/v1/realtime"
     max_call_seconds: int = 900
 
     @property

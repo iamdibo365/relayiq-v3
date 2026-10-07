@@ -11,6 +11,7 @@ import asyncio
 import base64
 import json
 import logging
+import re
 import time
 from typing import TYPE_CHECKING, Any
 
@@ -38,6 +39,10 @@ FILLERS = {
     "escalate_to_human": "",
 }
 DEFAULT_FILLER = "One moment."
+
+
+def _norm(text: str) -> str:
+    return re.sub(r"[^a-z0-9]+", " ", text.lower()).strip()
 
 
 class TwilioIO:
@@ -82,6 +87,11 @@ class CallSession:
         self._tasks: list[asyncio.Task] = []
         self._say_lock = asyncio.Lock()
         self.silence_prompts = 0
+        # speculative turns
+        self.partial = ""
+        self.awaiting_final = False
+        self.spec: dict | None = None
+        self.spec_stats = {"hits": 0, "misses": 0, "lead_ms": []}
 
     # ------------------------------------------------------------ lifecycle
     async def run(self) -> None:
@@ -129,9 +139,12 @@ class CallSession:
         self.p.live_calls[call_sid] = {"from": caller[-4:], "agent": self.ctx.active_agent,
                                        "started": now_iso(), "transcript": [], "alerts": []}
         journey_task = asyncio.create_task(self.p.journey.journey(caller))
+        await self._connect_audio()
+        self.ctx.journey = await journey_task
+
+    async def _connect_audio(self) -> None:
         self.stt = self.p.transcriber_factory()
         await self.stt.connect()
-        self.ctx.journey = await journey_task
 
     async def _teardown(self) -> None:
         self.closed = True
@@ -178,20 +191,91 @@ class CallSession:
         if ev.kind == "speech_started":
             self.last_activity = time.monotonic()
             self.silence_prompts = 0
+            self.partial, self.awaiting_final = "", False
+            if self.spec:  # caller kept talking: drop the guess silently (nothing was heard)
+                await self._abort_spec()
             if self._agent_busy():
                 await self._barge_in()
         elif ev.kind == "speech_stopped":
             self.speech_stopped_at = time.monotonic()
+            self.awaiting_final = True
+        elif ev.kind == "partial":
+            self.partial += ev.text
+            self._maybe_speculate()
         elif ev.kind == "final" and ev.text:
+            self.awaiting_final = False
             self._transcript("caller", ev.text)
             stt_ms = int((time.monotonic() - self.speech_stopped_at) * 1000) if self.speech_stopped_at else None
             self.p.db.execute("INSERT INTO turns(call_sid, ts, role, agent, text, stt_ms) VALUES (?,?,?,?,?,?)",
                               (self.ctx.call_sid, now_iso(), "caller", "", ev.text, stt_ms))
+            if self.spec and _norm(self.spec["text"]) == _norm(ev.text):
+                self._confirm_spec(ev.text)
+                return
+            if self.spec:
+                await self._abort_spec()
             if self.turn_task and not self.turn_task.done():
                 await self._barge_in()
             self.turn_task = asyncio.create_task(self._turn(ev.text))
         elif ev.kind == "error":
             self.live()["alerts"].append(f"STT: {ev.text[:120]}")
+
+    # ------------------------------------------------------------ speculation
+    def _maybe_speculate(self) -> None:
+        """Once the caller has stopped and the streaming transcript looks complete, start the
+        agent on it instead of waiting for the 'completed' event. Audio and any non-read tool
+        call wait on ctx.speculation_gate, so a wrong guess costs tokens, never correctness."""
+        text = self.partial.strip()
+        if not (self.p.settings.speculative_turns and self.awaiting_final and not self.spec
+                and len(text) >= 3 and text[-1] in ".?!"
+                and not (self.turn_task and not self.turn_task.done())
+                and Watchdog.classify(text) == "none"):
+            return
+        gate = asyncio.get_running_loop().create_future()
+        self.ctx.speculation_gate = gate
+        self.spec = {"text": text, "gate": gate, "hist_len": len(self.orch.history),
+                     "started": time.monotonic()}
+        self.turn_task = asyncio.create_task(self._turn(text))
+        self.spec["task"] = self.turn_task
+
+    def _confirm_spec(self, final_text: str) -> None:
+        spec, self.spec = self.spec, None
+        self.spec_stats["hits"] += 1
+        self.spec_stats["lead_ms"].append(int((time.monotonic() - spec["started"]) * 1000))
+        hist = self.orch.history
+        if len(hist) > spec["hist_len"]:
+            hist[spec["hist_len"]] = HumanMessage(final_text)
+        if not spec["gate"].done():
+            spec["gate"].set_result(True)
+        self.ctx.speculation_gate = None
+        self.live()["speculation"] = dict(self.spec_stats, lead_ms=self.spec_stats["lead_ms"][-5:])
+        log.info("speculative turn confirmed (%d ms head start)", self.spec_stats["lead_ms"][-1])
+
+    async def _abort_spec(self) -> None:
+        spec, self.spec = self.spec, None
+        if not spec:
+            return
+        self.spec_stats["misses"] += 1
+        if not spec["gate"].done():
+            spec["gate"].set_result(False)
+        self.ctx.speculation_gate = None
+        task = spec.get("task")
+        if task and not task.done():
+            task.cancel()
+            try:
+                await task
+            except (asyncio.CancelledError, Exception):  # noqa: BLE001
+                pass
+        del self.orch.history[spec["hist_len"]:]
+        self.live()["speculation"] = dict(self.spec_stats, lead_ms=self.spec_stats["lead_ms"][-5:])
+        log.info("speculative turn discarded (partial differed from final transcript)")
+
+    async def _wait_confirmed(self) -> None:
+        gate = self.ctx.speculation_gate if self.ctx else None
+        if gate is not None and not gate.done():
+            if not await gate:
+                raise asyncio.CancelledError("speculative turn discarded")
+        elif gate is not None and gate.done() and gate.result() is False:
+            raise asyncio.CancelledError("speculative turn discarded")
 
     def _agent_busy(self) -> bool:
         return bool(self.pending_marks) or bool(self.turn_task and not self.turn_task.done())
@@ -216,8 +300,11 @@ class CallSession:
         async with self._say_lock:
             first = True
             async for mu in self.tts.synthesize(text):
-                if first and timing is not None and "tts_first_audio" not in timing:
-                    timing["tts_first_audio"] = time.monotonic()
+                if first:
+                    # synthesis started already; only SENDING waits for a speculative turn's confirmation
+                    await self._wait_confirmed()
+                    if timing is not None and "tts_first_audio" not in timing:
+                        timing["tts_first_audio"] = time.monotonic()
                 first = False
                 await self.io.media(mu)
             self.mark_seq += 1

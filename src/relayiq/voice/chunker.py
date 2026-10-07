@@ -9,13 +9,15 @@ _ABBREV = ("dr.", "mr.", "mrs.", "ms.", "st.", "ave.", "a.m.", "p.m.", "no.", "e
 
 
 class SentenceChunker:
-    """Emit complete sentences; the first one must be >= first_min_chars so we don't send a
-    lone "Sure." to TTS (one extra round trip) when the next sentence is milliseconds away."""
+    """Emit speakable chunks as early as possible. The FIRST chunk goes out as soon as there is a
+    short sentence ("Got it.") or, failing that, a clause ending in a comma ("Sure, let me check,"),
+    so text-to-speech can start while the model is still writing the rest."""
 
-    def __init__(self, max_chars: int = 160, first_min_chars: int = 15):
+    def __init__(self, max_chars: int = 160, first_min_chars: int = 6, first_clause_chars: int = 24):
         self.buf = ""
         self.max_chars = max_chars
         self.first_min_chars = first_min_chars
+        self.first_clause_chars = first_clause_chars
         self.emitted = 0
 
     def _next_cut(self) -> int | None:
@@ -27,6 +29,10 @@ class SentenceChunker:
                 continue
             if len(head) >= min_len:
                 return end
+        if self.emitted == 0:
+            for m in re.finditer(r",(?=\s)", self.buf):
+                if len(self.buf[:m.end()].strip()) >= self.first_clause_chars:
+                    return m.end()
         if len(self.buf) > self.max_chars:
             cut = max(self.buf.rfind(",", 0, self.max_chars), self.buf.rfind(" ", 0, self.max_chars))
             if cut > 20:

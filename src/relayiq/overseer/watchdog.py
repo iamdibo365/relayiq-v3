@@ -36,6 +36,17 @@ class Watchdog:
     turns: int = 0
     alerts: list[str] = field(default_factory=list)
 
+    @staticmethod
+    def classify(text: str) -> str:
+        """Side-effect-free check used before speculating on a partial transcript."""
+        if SELF_HARM.search(text):
+            return "self_harm"
+        if EMERGENCY.search(text):
+            return "emergency"
+        if HUMAN.search(text):
+            return "human"
+        return "none"
+
     def on_user(self, text: str) -> WatchdogAction:
         self.turns += 1
         if SELF_HARM.search(text):

@@ -51,19 +51,38 @@ class Orchestrator:
         self.history: list[BaseMessage] = []
         self._graphs: dict[str, object] = {}
         self.opening_line = ""
+        self.usage: list[dict] = []
 
     # ------------------------------------------------------------------ prompts
     def _model_name(self, spec: AgentSpec) -> str:
         return {"frontdesk": self.s.frontdesk_model, "specialist": self.s.specialist_model,
                 "reasoning": self.s.reasoning_model}.get(spec.model, spec.model)
 
+    def static_prompt(self, spec: AgentSpec) -> str:
+        """Instructions that never change during a call: cacheable (with the tool list before it)."""
+        parts = [prompts.VOICE_STYLE if self.ctx.mode != "text" else "",
+                 spec.instructions.format(clinic=self.s.clinic_name),
+                 prompts.PLATFORM_GUARDRAILS.format(clinic=self.s.clinic_name)]
+        return "\n".join(x for x in parts if x)
+
     def system_prompt(self, spec: AgentSpec, prior_agent_said: str = "") -> str:
+        return self.static_prompt(spec) + "\n" + self.context_prompt(spec, prior_agent_said)
+
+    def system_message(self, spec: AgentSpec, prior_agent_said: str = "") -> SystemMessage:
+        """Claude prompt caching: tools + static instructions are a stable prefix marked with a
+        cache breakpoint; the per-turn call context goes after it so it never busts the cache."""
+        static, dynamic = self.static_prompt(spec), self.context_prompt(spec, prior_agent_said)
+        if self._model_name(spec).startswith("claude"):
+            return SystemMessage(content=[
+                {"type": "text", "text": static, "cache_control": {"type": "ephemeral"}},
+                {"type": "text", "text": dynamic},
+            ])
+        return SystemMessage(static + "\n" + dynamic)
+
+    def context_prompt(self, spec: AgentSpec, prior_agent_said: str = "") -> str:
         c = self.ctx
         now = datetime.now(ZoneInfo(self.s.clinic_timezone))
-        lines = [prompts.VOICE_STYLE if c.mode != "text" else "",
-                 spec.instructions.format(clinic=self.s.clinic_name),
-                 prompts.PLATFORM_GUARDRAILS.format(clinic=self.s.clinic_name),
-                 "\n## Call context",
+        lines = ["## Call context",
                  f"Now: {now.strftime('%A, %B %d %Y, %I:%M %p')} ({self.s.clinic_timezone})",
                  f"Active agent: {spec.name}"]
         if self.opening_line and len(self.history) <= 2:
@@ -76,7 +95,9 @@ class Orchestrator:
             if c.caller_id_match:
                 lines.append(f"Caller ID matches patient {c.caller_id_match['first_name']} on file "
                              "(greeting by first name is OK; still verify).")
-        if c.journey and c.verified:
+        same_person = bool(c.patient and c.caller_id_match and c.patient["id"] == c.caller_id_match["id"])
+        if c.journey and c.verified and same_person:
+            # journey was looked up by caller ID; never show it for a different verified patient
             lines.append("Recent cross-channel history (from the customer-journey MCP server):\n" + c.journey)
         if c.case_file:
             lines.append("Case file (facts from tools this call):\n- " + "\n- ".join(c.case_file[-15:]))
@@ -111,7 +132,7 @@ class Orchestrator:
             for _hop in range(3):
                 spec = self.registry.resolve(self.ctx.active_agent, self.ctx) or self.registry.get("front_desk")
                 graph = self._graph(spec)
-                messages = [SystemMessage(self.system_prompt(spec, prior_said))] + self.history
+                messages = [self.system_message(spec, prior_said)] + self.history
                 self.ctx.handoff_to = None
                 last_msg_id = None
                 streamed_ids: set = set()
@@ -121,6 +142,7 @@ class Orchestrator:
                     if not isinstance(chunk, AIMessage):
                         continue
                     is_chunk = isinstance(chunk, AIMessageChunk)
+                    self._record_usage(chunk)
                     if is_chunk:
                         streamed_ids.add(chunk.id)
                     elif chunk.id in streamed_ids:
@@ -155,6 +177,16 @@ class Orchestrator:
             self.ctx.handoff_note = "" if not self.ctx.handoff_to else self.ctx.handoff_note
             text = "".join(said).strip()
             self.history.append(AIMessage(text or "(no spoken reply)"))
+
+    def _record_usage(self, msg: AIMessage) -> None:
+        """Track prompt-cache effectiveness (Claude reports cache reads/writes per request)."""
+        um = getattr(msg, "usage_metadata", None) or {}
+        details = um.get("input_token_details") or {}
+        if not um.get("input_tokens"):
+            return
+        read, write = details.get("cache_read") or 0, details.get("cache_creation") or 0
+        self.usage.append({"input": um["input_tokens"], "cache_read": read, "cache_write": write})
+        log.info("llm usage: input=%s cache_read=%s cache_write=%s", um["input_tokens"], read, write)
 
     def mark_interrupted(self, heard_text: str) -> None:
         """Replace the last assistant message with what the caller actually heard."""

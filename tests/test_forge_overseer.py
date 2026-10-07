@@ -38,7 +38,7 @@ async def test_release_gate_end_to_end_with_scripted_models(make_platform):
             self.caller_turns = 0
 
         def __call__(self, messages):
-            first = messages[0].content
+            first = messages[0].text
             if first.startswith("You are role-playing a caller"):
                 self.caller_turns += 1
                 return {"text": ["Can I talk to a real person please?", "I said a human, now."][self.caller_turns - 1]

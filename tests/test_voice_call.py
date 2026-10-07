@@ -136,3 +136,64 @@ def test_text_before_a_tool_call_is_spoken_before_the_tool_runs(make_platform):
     assert "Let me look at the schedule for you" in spoken
     assert "One moment." not in spoken
     assert spoken.index("Let me look at the schedule for you") < spoken.index("I have Monday at nine thirty.")
+
+
+def _human_texts(messages):
+    from langchain_core.messages import HumanMessage
+    return [m.text for m in messages if isinstance(m, HumanMessage)]
+
+
+def _one_turn(p, sid):
+    import logging
+    logging.getLogger("relayiq.session").setLevel(logging.INFO)
+    with TestClient(create_app(p)) as client, client.websocket_connect("/twilio/media") as ws:
+        ws.send_text(json.dumps(_start(p, sid)))
+        greet = _collect(ws, lambda m: m[-1]["event"] == "mark")
+        ws.send_text(json.dumps({"event": "mark", "streamSid": "MZ1", "mark": greet[-1]["mark"]}))
+        for _ in range(25):
+            ws.send_text(json.dumps(_media()))
+        reply = _collect(ws, lambda m: m[-1]["event"] == "mark")
+        ws.send_text(json.dumps({"event": "mark", "streamSid": "MZ1", "mark": reply[-1]["mark"]}))
+        time.sleep(0.3)
+        ws.send_text(json.dumps({"event": "stop"}))
+    return reply
+
+
+def test_speculative_turn_hit_reuses_the_early_llm_call(make_platform, caplog):
+    """Partial transcript == final: the LLM started early, and its reply is spoken once confirmed."""
+    p = make_platform(script=[{"text": "Sure thing. Your balance is forty five dollars."}],
+                      utterances=[{"partial": "What's my balance?", "final": "What's my balance?", "delay": 0.4}])
+    _one_turn(p, "CAhit")
+    assert len(p._test_model.seen) == 1  # one LLM call, started before the final transcript
+    agent = p.db.query("SELECT text FROM turns WHERE call_sid='CAhit' AND role='agent' AND text != ''")
+    assert agent[-1]["text"].startswith("Sure thing.")
+    assert "speculative turn confirmed" in caplog.text
+
+
+def test_speculative_turn_miss_is_never_heard_and_is_rolled_back(make_platform, caplog):
+    """Partial differs from final: the guessed reply is discarded before any audio is sent,
+    and the conversation history only ever contains what the caller actually said."""
+    p = make_platform(script=[{"text": "GUESSED REPLY."}, {"text": "Sure, Dr. Chen has Monday open."}],
+                      utterances=[{"partial": "I want to book.",
+                                   "final": "I want to book with Dr. Chen.", "delay": 0.4}])
+    _one_turn(p, "CAmiss")
+    assert len(p._test_model.seen) == 2
+    assert _human_texts(p._test_model.seen[1]) == ["I want to book with Dr. Chen."]
+    agent = [r["text"] for r in p.db.query("SELECT text FROM turns WHERE call_sid='CAmiss' AND role='agent'")]
+    assert not any("GUESSED" in t for t in agent)
+    assert any("Dr. Chen has Monday" in t for t in agent)
+    assert "speculative turn discarded" in caplog.text
+
+
+def test_speculative_turn_never_runs_write_tools_before_confirmation(make_platform):
+    """A guessed turn that tries to book is blocked at the gateway and abandoned on a miss."""
+    p = make_platform(script=[{"text": "", "tools": [("create_callback_task", {"reason": "x"})]},
+                              {"text": "Okay, what day works?"}],
+                      utterances=[{"partial": "Book me in.", "final": "Book me in for Tuesday please.", "delay": 0.4}])
+    _one_turn(p, "CAwrite")
+    rows = p.db.query("SELECT * FROM ledger WHERE call_sid='CAwrite'") if _has_table(p, "ledger") else []
+    assert not any(r.get("tool") == "create_callback_task" for r in rows)
+
+
+def _has_table(p, name):
+    return bool(p.db.query("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (name,)))

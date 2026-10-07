@@ -82,8 +82,18 @@ class FakeTranscriber:
     async def send_audio(self, mulaw: bytes):
         self.n += 1
         if self.n % self.per == 0 and self.utterances:
-            text = self.utterances.pop(0)
-            for ev in (STTEvent("speech_started"), STTEvent("speech_stopped"), STTEvent("final", text)):
+            u = self.utterances.pop(0)
+            if isinstance(u, dict):  # {"partial": str, "final": str, "delay": s}: streaming transcript
+                for ev in (STTEvent("speech_started"), STTEvent("speech_stopped"),
+                           STTEvent("partial", u["partial"])):
+                    await self.q.put(ev)
+
+                async def later():
+                    await asyncio.sleep(u.get("delay", 0.3))
+                    await self.q.put(STTEvent("final", u["final"]))
+                self._later = asyncio.create_task(later())
+                return
+            for ev in (STTEvent("speech_started"), STTEvent("speech_stopped"), STTEvent("final", u)):
                 await self.q.put(ev)
 
     async def events(self):
