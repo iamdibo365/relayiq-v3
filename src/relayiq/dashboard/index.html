@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RelayIQ Console</title>
+<style>
+:root{--bg:#0d1420;--panel:#141e2e;--line:#22314a;--ink:#e6edf7;--mute:#8da0bd;--accent:#4fb3ff;--ok:#3ecf8e;--warn:#f5b84a;--bad:#ff6b6b}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif}
+header{display:flex;align-items:baseline;gap:12px;padding:18px 24px;border-bottom:1px solid var(--line)}
+header h1{font-size:18px;margin:0;letter-spacing:.3px}header span{color:var(--mute)}
+main{display:grid;grid-template-columns:repeat(12,1fr);gap:16px;padding:16px 24px}
+section{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;min-width:0}
+h2{font-size:12px;text-transform:uppercase;letter-spacing:.8px;color:var(--mute);margin:0 0 10px}
+.tiles{grid-column:span 12;display:grid;grid-template-columns:repeat(6,1fr);gap:12px;background:none;border:0;padding:0}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.tile b{display:block;font-size:24px;font-variant-numeric:tabular-nums}.tile small{color:var(--mute)}
+.c8{grid-column:span 8}.c4{grid-column:span 4}.c6{grid-column:span 6}.c12{grid-column:span 12}
+.msg{padding:6px 10px;border-radius:8px;margin:4px 0;max-width:85%}.caller{background:#1d2a40}.agent{background:#16324a;margin-left:auto}
+.msg i{display:block;font-style:normal;font-size:11px;color:var(--mute)}
+table{width:100%;border-collapse:collapse;font-size:12.5px}td,th{padding:5px 6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{color:var(--mute);font-weight:500}
+.chip{display:inline-block;padding:1px 8px;border-radius:99px;font-size:11px;border:1px solid var(--line)}
+.ok{color:var(--ok);border-color:#1f5a43}.bad{color:var(--bad);border-color:#5a2525}.warn{color:var(--warn);border-color:#5a4720}
+textarea{width:100%;min-height:64px;background:#0f1724;color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px;font:inherit}
+button{background:var(--accent);color:#04121f;border:0;border-radius:8px;padding:7px 12px;font-weight:600;cursor:pointer}
+.empty{color:var(--mute)}.alert{color:var(--warn);font-size:12px}
+@media (max-width:1000px){.c8,.c4,.c6{grid-column:span 12}.tiles{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<header><h1>RelayIQ v3</h1><span>voice-first patient access · Twilio → OpenAI speech → Claude agents</span></header>
+<main>
+  <div class="tiles" id="tiles"></div>
+  <section class="c8"><h2>Live calls</h2><div id="live"></div></section>
+  <section class="c4"><h2>Agents</h2><div id="agents"></div>
+    <h2 style="margin-top:14px">Forge · build an agent</h2>
+    <textarea id="forgeText" placeholder="e.g. An agent that handles prior-authorization status questions; it can look up the patient's insurance and create a callback task."></textarea>
+    <div style="margin-top:8px;display:flex;gap:8px"><button onclick="forge()">Draft &amp; gate</button><span id="builds" class="empty"></span></div>
+  </section>
+  <section class="c6"><h2>Automations ledger</h2><div id="ledger"></div></section>
+  <section class="c6"><h2>Insurance verification</h2><div id="ins"></div><h2 style="margin-top:14px">Appointments</h2><div id="appts"></div></section>
+  <section class="c12"><h2>Overseer release gate <button style="float:right" onclick="runEvals()">Run suite</button></h2><div id="evals"></div></section>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const chip=(t,c)=>`<span class="chip ${c||''}">${esc(t)}</span>`;
+const stat=s=>chip(s,{active:'ok',executed:'ok',booked:'ok',passed:'ok',denied:'bad',inactive:'bad',rejected:'bad',failed:'bad',pending:'warn',pending_insurance:'warn',testing:'warn',unverified:'warn',error:'bad'}[s]);
+function table(rows,cols){if(!rows.length)return '<div class="empty">Nothing yet</div>';
+ return `<table><tr>${cols.map(c=>`<th>${c[0]}</th>`).join('')}</tr>${rows.map(r=>`<tr>${cols.map(c=>`<td>${c[1](r)}</td>`).join('')}</tr>`).join('')}</table>`}
+async function refresh(){
+ const s=await (await fetch('/api/state')).json(), m=s.metrics;
+ $('tiles').innerHTML=[['Calls',m.calls],['p50 turn latency',m.latency_p50_ms?m.latency_p50_ms+' ms':'—'],['p95 turn latency',m.latency_p95_ms?m.latency_p95_ms+' ms':'—'],
+  ['Staff minutes automated',m.minutes_automated],['Actions executed',m.actions_executed],['Actions blocked by policy',m.actions_denied]]
+  .map(([k,v])=>`<div class="tile"><small>${k}</small><b>${esc(v)}</b></div>`).join('');
+ const live=Object.entries(s.live_calls);
+ $('live').innerHTML=live.length?live.map(([sid,c])=>`<div><b>…${esc(c.from)}</b> ${chip(c.agent||'front_desk')} ${c.last_latency_ms?chip(c.last_latency_ms+' ms'):''}
+   ${(c.alerts||[]).map(a=>`<div class="alert">⚠ ${esc(a)}</div>`).join('')}
+   ${(c.transcript||[]).slice(-12).map(t=>`<div class="msg ${t.role==='caller'?'caller':'agent'}"><i>${esc(t.role==='agent'?t.agent:t.role)}</i>${esc(t.text)}</div>`).join('')}</div>`).join('<hr>')
+   :`<div class="empty">No active calls. Recent: </div>`+table(s.recent_calls,[['Caller',r=>'…'+esc(r.from_last4)],['Started',r=>esc(r.started_at?.slice(11,19))],['Agent',r=>chip(r.active_agent)],['Escalated',r=>r.escalated?stat('error'):''],['Outcome',r=>esc(r.outcome)]]);
+ $('agents').innerHTML=s.agents.map(a=>`<div style="margin:6px 0"><b>${esc(a.display_name)}</b> ${stat(a.status)} ${a.source==='forge'?chip('forge'):''}
+   ${a.eval?chip(`${a.eval.n_passed}/${a.eval.n} · ${a.eval.mean_score}`):''}<div class="empty" style="font-size:12px">${esc(a.purpose)}</div></div>`).join('');
+ $('builds').innerHTML=s.builds.map(b=>`${esc(b.agent||b.id)} ${stat(b.status)}`).join(' ');
+ $('ledger').innerHTML=table(s.ledger,[['Time',r=>esc(r.ts.slice(11,19))],['Agent',r=>esc(r.agent)],['Tool',r=>esc(r.tool)],['Decision',r=>stat(r.decision)],['Saved',r=>r.minutes_saved?r.minutes_saved+' min':''],['ms',r=>r.latency_ms]]);
+ $('ins').innerHTML=table(s.insurance_checks,[['Check',r=>esc(r.id)],['Payer',r=>esc(r.payer_id)],['Method',r=>esc(r.method)],['Status',r=>stat(r.status)],['Summary',r=>esc(r.summary)]]);
+ $('appts').innerHTML=table(s.appointments,[['Appt',r=>esc(r.id)],['When',r=>esc(r.start.slice(0,16).replace('T',' '))],['Status',r=>stat(r.status)],['Insurance',r=>stat(r.insurance_status)]]);
+ $('evals').innerHTML=table(s.evals,[['Run',r=>`<a style="color:var(--accent)" href="/api/evals/${r.id}" target="_blank">${esc(r.id)}</a>`],['Target',r=>esc(r.target)],['Started',r=>esc(r.started_at.slice(11,19))],['Result',r=>r.completed_at?stat(r.passed?'passed':'failed'):stat('pending')],['Mean score (1–5)',r=>r.score??'']]);
+}
+async function forge(){const d=$('forgeText').value.trim();if(!d)return;await fetch('/api/forge',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({description:d})});$('forgeText').value='';refresh()}
+async function runEvals(){await fetch('/api/evals/run',{method:'POST'});refresh()}
+refresh();setInterval(()=>refresh().catch(()=>{}),1500);
+</script>
+</body>
+</html>
