@@ -13,7 +13,14 @@
 | Payer-portal fallback (browser agent) | Not run against a real portal (no provider-portal credentials); passes against a local test portal in real Chromium (6 steps, secrets never reach the model) |
 | Gateway decisions | Live demo: 27 executed, 2 failed (tool ran but couldn't act), 0 blocked (none attempted). Gate runs: 1 blocked of 76 tool calls |
 
-![RelayIQ dashboard: Jane Doe verified, eligibility active via Stedi, appointment booked](docs/dashboard.png)
+![RelayIQ live console: call history with outcomes, agent roster, Forge agent builder](docs/dashboard_pg1.png)
+*Live console across 11 real calls (headline tiles include every call, before and after the latency fixes).*
+
+![Automations ledger, insurance verification results and appointments](docs/dashboard_pg2.png)
+*Every tool call is audited in the ledger. Jane Doe: Stedi returns active coverage, so the visit is booked. John Doe: the payer rejects the member ID, so the visit is booked as pending_insurance for staff follow-up.*
+
+![Overseer release gate runs](docs/dashboard_pg3.png)
+*Overseer release-gate runs: simulated callers graded by a Claude judge; a run fails if any scenario fails.*
 
 Everything runs on real services: Twilio Programmable Voice + Media Streams, OpenAI `gpt-4o-transcribe` (streaming STT) and `gpt-4o-mini-tts`, Claude Haiku 4.5 for the voice agents, Claude Sonnet 5.5 for Forge, grading and the browser agent, and an OpenAI GPT-5.4 mini model as the simulated caller. Test doubles exist only under `tests/`.
 

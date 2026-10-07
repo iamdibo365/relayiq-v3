@@ -8,3 +8,4 @@ data/
 interview-talking-points.md
 .env.*
 !.env.example
+.DS_Store
