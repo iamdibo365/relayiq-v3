@@ -142,7 +142,7 @@ async def main() -> None:
                 await stream(silence_mulaw(100))
             while time.monotonic() - start < timeout:  # 2) wait for it to finish playing
                 idle = time.monotonic() - last_agent_audio
-                if idle > 1.8 and time.monotonic() > playback_until + 0.5:
+                if idle > 3.0 and time.monotonic() > playback_until + 0.5:
                     return
                 await stream(silence_mulaw(100))
 

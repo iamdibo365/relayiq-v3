@@ -76,6 +76,7 @@ async def test_offered_slot_ids_survive_across_turns_and_bad_ids_are_explained(c
 
 async def test_clearinghouse_error_is_recorded(ctx, settings):
     import httpx
+
     from relayiq.insurance.eligibility import StediEligibilityClient
     p, c = ctx
     s = settings.model_copy(update={"stedi_api_key": "test_x"})

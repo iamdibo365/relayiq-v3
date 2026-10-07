@@ -19,7 +19,8 @@ SCHEMA = """
 CREATE TABLE IF NOT EXISTS patients (
   id TEXT PRIMARY KEY, first_name TEXT, last_name TEXT, dob TEXT, phone TEXT UNIQUE,
   email TEXT, payer_id TEXT, payer_name TEXT, member_id TEXT, group_number TEXT,
-  pcp_provider_id TEXT, preferred_language TEXT DEFAULT 'en'
+  pcp_provider_id TEXT, preferred_language TEXT DEFAULT 'en',
+  subscriber_first_name TEXT, subscriber_last_name TEXT, subscriber_dob TEXT
 );
 CREATE TABLE IF NOT EXISTS providers (
   id TEXT PRIMARY KEY, name TEXT, specialty TEXT, location TEXT
@@ -100,7 +101,15 @@ class Database:
         self._lock = threading.RLock()
         with self._lock:
             self._conn.executescript(SCHEMA)
+            self._migrate()
             self._conn.commit()
+
+    def _migrate(self) -> None:
+        """Add columns introduced after a database was first created."""
+        cols = {r[1] for r in self._conn.execute("PRAGMA table_info(patients)")}
+        for col in ("subscriber_first_name", "subscriber_last_name", "subscriber_dob"):
+            if col not in cols:
+                self._conn.execute(f"ALTER TABLE patients ADD COLUMN {col} TEXT")
 
     def query(self, sql: str, params: tuple | dict = ()) -> list[dict[str, Any]]:
         with self._lock:
@@ -145,6 +154,7 @@ def seed(db: Database, tz: str = "America/Chicago", force: bool = False) -> None
     """Seed synthetic clinic data. Member IDs are placeholders - for Stedi test mode,
     replace them with the values from Stedi's published mock eligibility requests."""
     if db.one("SELECT 1 AS x FROM patients LIMIT 1") and not force:
+        ensure_demo_dependent(db)
         return
     for t in ("patients", "providers", "slots", "appointments", "refills", "balances",
               "journey_events"):
@@ -167,7 +177,10 @@ def seed(db: Database, tz: str = "America/Chicago", force: bool = False) -> None
          "60054", "Aetna", "AETNA-PLACEHOLDER-1", "GRP-5503", "prv_rivera", "es"),
     ]
     for p in patients:
-        db.execute("INSERT INTO patients VALUES (?,?,?,?,?,?,?,?,?,?,?,?)", p)
+        db.execute("INSERT INTO patients(id, first_name, last_name, dob, phone, email, payer_id, payer_name, "
+                   "member_id, group_number, pcp_provider_id, preferred_language) "
+                   "VALUES (?,?,?,?,?,?,?,?,?,?,?,?)", p)
+    ensure_demo_dependent(db)
 
     zone = ZoneInfo(tz)
     day = datetime.now(zone).replace(hour=0, minute=0, second=0, microsecond=0)
@@ -212,3 +225,14 @@ def seed(db: Database, tz: str = "America/Chicago", force: bool = False) -> None
             "INSERT INTO journey_events(patient_id, channel, ts, summary, sentiment) VALUES (?,?,?,?,?)",
             (pid, ch, (datetime.now(timezone.utc) - timedelta(days=len(s) % 20 + 1)).isoformat(
                 timespec="seconds"), s, sent))
+
+
+def ensure_demo_dependent(db: Database) -> None:
+    """Jane Doe is covered as a dependent on John Doe's UnitedHealthcare plan. These are the values of
+    Stedi's published test-mode mock request, so a test API key returns a real 271 'active' response."""
+    db.execute(
+        "INSERT OR IGNORE INTO patients(id, first_name, last_name, dob, phone, email, payer_id, payer_name, "
+        "member_id, group_number, pcp_provider_id, preferred_language, subscriber_first_name, "
+        "subscriber_last_name, subscriber_dob) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        ("pt_1004", "Jane", "Doe", "1952-11-21", "+15555550104", "jane.doe@example.com", "87726",
+         "UnitedHealthcare", "UHC202649", None, "prv_chen", "en", "John", "Doe", None))

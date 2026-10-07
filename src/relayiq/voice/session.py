@@ -140,7 +140,9 @@ class CallSession:
         if self.stt:
             await self.stt.close()
         if self.ctx:
-            outcome = "; ".join(self.ctx.case_file[-4:]) or "no actions"
+            facts = [f for f in self.ctx.case_file
+                     if not f.startswith(("Slots offered", "Upcoming appointments"))]
+            outcome = "; ".join(facts[-4:]) or "no actions"
             self.p.db.execute("UPDATE calls SET ended_at=?, outcome=? WHERE call_sid=?",
                               (now_iso(), outcome[:500], self.ctx.call_sid))
             if self.ctx.caller_id_match:
@@ -266,8 +268,14 @@ class CallSession:
                     spoken_any = True
                     await self._say(sentence, timing)
             elif ev.kind == "tool":
+                # Speak whatever the model already said ("Let me check...") BEFORE the tool runs;
+                # otherwise it sits in the buffer until the tool returns and the caller hears silence.
+                pending = chunker.flush()
+                for sentence in pending:
+                    spoken_any = True
+                    await self._say(sentence, timing)
                 filler = FILLERS.get(ev.value, DEFAULT_FILLER)
-                if filler and not spoken_any and not chunker.buf.strip():
+                if filler and not spoken_any:
                     spoken_any = True
                     await self._say(filler, timing)
             elif ev.kind == "agent":

@@ -1,5 +1,6 @@
 """One real eligibility check through the clearinghouse API, for a patient in the demo DB.
 
+  uv run python scripts/check_eligibility.py pt_1004     # Jane Doe, dependent on John Doe's UHC plan (Stedi mock)
   uv run python scripts/check_eligibility.py pt_1001
   # Stedi test mode: first copy a mock request's member values onto the patient:
   uv run python scripts/check_eligibility.py pt_1001 --payer 87726 --member-id <from Stedi docs> \
@@ -24,11 +25,16 @@ ap.add_argument("--member-id")
 ap.add_argument("--first")
 ap.add_argument("--last")
 ap.add_argument("--dob")
+ap.add_argument("--subscriber-first", help="set when the patient is a dependent on someone else's plan")
+ap.add_argument("--subscriber-last")
+ap.add_argument("--subscriber-dob")
 a = ap.parse_args()
 s = get_settings()
 db = Database(s.db_file)
 seed(db, s.clinic_timezone)
-updates = {"payer_id": a.payer, "member_id": a.member_id, "first_name": a.first, "last_name": a.last, "dob": a.dob}
+updates = {"payer_id": a.payer, "member_id": a.member_id, "first_name": a.first, "last_name": a.last, "dob": a.dob,
+           "subscriber_first_name": a.subscriber_first, "subscriber_last_name": a.subscriber_last,
+           "subscriber_dob": a.subscriber_dob}
 for col, val in updates.items():
     if val:
         db.execute(f"UPDATE patients SET {col}=? WHERE id=?", (val, a.patient_id))
@@ -41,4 +47,7 @@ if not s.stedi_api_key:
     sys.exit("Set STEDI_API_KEY in .env (a test key works against Stedi's mock requests)")
 res = asyncio.run(StediEligibilityClient(s).check(patient))
 print(f"{res.status.upper()}: {res.summary}")
-print(json.dumps(res.raw, indent=2)[:4000])
+out = Path("data") / f"eligibility_{a.patient_id}.json"
+out.parent.mkdir(exist_ok=True)
+out.write_text(json.dumps(res.raw, indent=2))
+print(f"Full payer response saved to {out}")

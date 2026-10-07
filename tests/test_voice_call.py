@@ -103,3 +103,36 @@ def test_emergency_is_handled_deterministically(make_platform):
     assert any("9 1 1" in s for s in p.tts.spoken)
     assert p.twilio.transfers == ["CAem"]
     assert p._test_model.seen == []  # LLM never consulted for the emergency path
+
+
+def test_text_before_a_tool_call_is_spoken_before_the_tool_runs(make_platform):
+    """Regression: 'Let me look...' used to wait in the sentence buffer until the tool returned."""
+    from relayiq.gateway import clinic_tools
+
+    order = []
+    orig = clinic_tools.list_providers
+
+    async def spy(ctx, a):
+        order.append(("tool", list(p.tts.spoken)))
+        return await orig(ctx, a)
+
+    p = make_platform(script=[
+        {"text": "Let me look at the schedule for you", "tools": [("list_providers", {})]},
+        {"text": "I have Monday at nine thirty."}],
+        utterances=["Any openings next week?"])
+    p.gateway.tools["list_providers"].fn = spy
+    with TestClient(create_app(p)) as client, client.websocket_connect("/twilio/media") as ws:
+        ws.send_text(json.dumps(_start(p, "CAflush")))
+        greet = _collect(ws, lambda m: m[-1]["event"] == "mark")
+        ws.send_text(json.dumps({"event": "mark", "streamSid": "MZ1", "mark": greet[-1]["mark"]}))
+        for _ in range(25):
+            ws.send_text(json.dumps(_media()))
+        _collect(ws, lambda m: sum(x["event"] == "mark" for x in m) >= 2)
+        ws.send_text(json.dumps({"event": "stop"}))
+    # The model's own lead-in is spoken immediately at the tool call, so no canned filler is needed
+    # and nothing waits for the tool + second model call.
+    assert order, "tool should have run"
+    spoken = p.tts.spoken
+    assert "Let me look at the schedule for you" in spoken
+    assert "One moment." not in spoken
+    assert spoken.index("Let me look at the schedule for you") < spoken.index("I have Monday at nine thirty.")

@@ -1,0 +1,835 @@
+{
+ "meta": {
+  "traceId": "01M4AKD73QYVY6EXE9HDEFZWV8",
+  "outboundTraceId": "01M4AKD73QYVY6EXE9HDEFZWV8"
+ },
+ "payerId": "87726",
+ "payer": {
+  "name": {
+   "organization": "UNITEDHEALTHCARE"
+  },
+  "type": "PAYER",
+  "contacts": [
+   {
+    "urls": [
+     "WWW.UHCPROVIDER.COM"
+    ]
+   }
+  ],
+  "identification": "87726"
+ },
+ "provider": {
+  "name": {
+   "organization": "Jerde - Sauer"
+  },
+  "type": "PROVIDER",
+  "npi": "1999999984"
+ },
+ "subscriber": {
+  "address": {
+   "addressLine1": "123 Sunnyvale Lane",
+   "city": "Fosterburgh",
+   "state": "TX",
+   "postalCode": "91016"
+  },
+  "dates": {
+   "plan": {
+    "start": "2024-01-01",
+    "end": "2024-12-31"
+   }
+  },
+  "dateOfBirth": "1976-02-14",
+  "gender": "MALE",
+  "name": {
+   "person": {
+    "firstName": "John",
+    "lastName": "Doe",
+    "middleName": "A"
+   }
+  },
+  "additionalInformation": {
+   "plan": {
+    "number": "UVdQAC5j6f"
+   },
+   "group": {
+    "number": "186084"
+   }
+  },
+  "memberId": "UHC202649"
+ },
+ "dependent": {
+  "dateOfBirth": "1952-11-21",
+  "gender": "FEMALE",
+  "maintenance": {
+   "indicator": "PAYER_INDICATED"
+  },
+  "name": {
+   "person": {
+    "firstName": "Jane",
+    "lastName": "Doe",
+    "middleName": "Alex"
+   }
+  },
+  "relationToSubscriber": "SPOUSE",
+  "additionalInformation": {
+   "plan": {
+    "number": "UVdQAC5j6f"
+   }
+  }
+ },
+ "plans": [
+  {
+   "benefits": {
+    "statuses": [
+     {
+      "coverageLevel": "INDIVIDUAL",
+      "insuranceType": "COMMERCIAL",
+      "network": {
+       "indicator": "IN_AND_OUT_OF_NETWORK"
+      },
+      "service": {
+       "value": "30",
+       "definition": "Health Benefit Plan Coverage",
+       "system": "STC"
+      },
+      "messages": [
+       "PROVIDER IS OUT NETWORK FOR MEMBER",
+       "FUNDING TYPE = SELF INSURED - LARGE GROUP"
+      ],
+      "dates": {
+       "dateOfLastUpdate": {
+        "start": "2024-07-31"
+       }
+      },
+      "relatedEntities": [
+       {
+        "name": {
+         "organization": "UNITEDHEALTHCARE"
+        },
+        "type": "PAYER",
+        "address": {
+         "addressLine1": "P.O. BOX 30555",
+         "city": "SALT LAKE CITY",
+         "state": "UT",
+         "postalCode": "841300555"
+        },
+        "contacts": [
+         {
+          "urls": [
+           "WWW.UHCPROVIDER.COM"
+          ]
+         }
+        ],
+        "payerId": "87726"
+       }
+      ],
+      "planCoverageDescription": "CHOICE PLUS",
+      "status": "ACTIVE_COVERAGE"
+     },
+     {
+      "coverageLevel": "INDIVIDUAL",
+      "network": {
+       "indicator": "IN_NETWORK"
+      },
+      "service": {
+       "value": "A6",
+       "definition": "Psychotherapy",
+       "system": "STC"
+      },
+      "messages": [
+       "HIGHEST BENEFIT"
+      ],
+      "status": "ACTIVE_COVERAGE"
+     },
+     {
+      "coverageLevel": "INDIVIDUAL",
+      "network": {
+       "indicator": "IN_NETWORK"
+      },
+      "service": {
+       "value": "A6",
+       "definition": "Psychotherapy",
+       "system": "STC"
+      },
+      "messages": [
+       "ABLETO FULLY FUNDED"
+      ],
+      "status": "ACTIVE_COVERAGE"
+     },
+     {
+      "coverageLevel": "INDIVIDUAL",
+      "network": {
+       "indicator": "IN_NETWORK"
+      },
+      "service": {
+       "value": "A6",
+       "definition": "Psychotherapy",
+       "system": "STC"
+      },
+      "messages": [
+       "ABLETO PARTIALLY FUNDED"
+      ],
+      "status": "ACTIVE_COVERAGE"
+     },
+     {
+      "coverageLevel": "INDIVIDUAL",
+      "network": {
+       "indicator": "IN_AND_OUT_OF_NETWORK"
+      },
+      "service": {
+       "value": "A6",
+       "definition": "Psychotherapy",
+       "system": "STC"
+      },
+      "status": "ACTIVE_COVERAGE"
+     }
+    ],
+    "coInsurance": [
+     {
+      "coverageLevel": "INDIVIDUAL",
+      "network": {
+       "indicator": "OUT_OF_NETWORK"
+      },
+      "service": {
+       "value": "A6",
+       "definition": "Psychotherapy",
+       "system": "STC"
+      },
+      "placesOfService": [
+       {
+        "code": "11",
+        "name": "Office"
+       }
+      ],
+      "timePeriod": "VISIT",
+      "percent": "0.4"
+     },
+     {
+      "coverageLevel": "INDIVIDUAL",
+      "network": {
+       "indicator": "IN_NETWORK"
+      },
+      "service": {
+       "value": "A6",
+       "definition": "Psychotherapy",
+       "system": "STC"
+      },
+      "placesOfService": [
+       {
+        "code": "11",
+        "name": "Office"
+       }
+      ],
+      "timePeriod": "VISIT",
+      "percent": "0.2"
+     },
+     {
+      "coverageLevel": "INDIVIDUAL",
+      "network": {
+       "indicator": "IN_NETWORK"
+      },
+      "service": {
+       "value": "A6",
+       "definition": "Psychotherapy",
+       "system": "STC"
+      },
+      "messages": [
+       "HIGHEST BENEFIT"
+      ],
+      "placesOfService": [
+       {
+        "code": "11",
+        "name": "Office"
+       }
+      ],
+      "timePeriod": "VISIT",
+      "percent": "0.2"
+     },
+     {
+      "coverageLevel": "INDIVIDUAL",
+      "network": {
+       "indicator": "IN_NETWORK"
+      },
+      "service": {
+       "value": "A6",
+       "definition": "Psychotherapy",
+       "system": "STC"
+      },
+      "messages": [
+       "ABLETO PARTIALLY FUNDED"
+      ],
+      "placesOfService": [
+       {
+        "code": "11",
+        "name": "Office"
+       }
+      ],
+      "timePeriod": "VISIT",
+      "percent": "0.2"
+     },
+     {
+      "coverageLevel": "INDIVIDUAL",
+      "network": {
+       "indicator": "IN_NETWORK"
+      },
+      "service": {
+       "value": "A6",
+       "definition": "Psychotherapy",
+       "system": "STC"
+      },
+      "messages": [
+       "ABLETO FULLY FUNDED"
+      ],
+      "placesOfService": [
+       {
+        "code": "11",
+        "name": "Office"
+       }
+      ],
+      "timePeriod": "VISIT",
+      "percent": "0"
+     }
+    ],
+    "coPayment": [
+     {
+      "coverageLevel": "INDIVIDUAL",
+      "network": {
+       "indicator": "IN_NETWORK"
+      },
+      "service": {
+       "value": "A6",
+       "definition": "Psychotherapy",
+       "system": "STC"
+      },
+      "messages": [
+       "HIGHEST BENEFIT"
+      ],
+      "placesOfService": [
+       {
+        "code": "11",
+        "name": "Office"
+       }
+      ],
+      "timePeriod": "VISIT",
+      "amount": "0"
+     },
+     {
+      "coverageLevel": "INDIVIDUAL",
+      "network": {
+       "indicator": "IN_NETWORK"
+      },
+      "service": {
+       "value": "A6",
+       "definition": "Psychotherapy",
+       "system": "STC"
+      },
+      "messages": [
+       "ABLETO PARTIALLY FUNDED"
+      ],
+      "placesOfService": [
+       {
+        "code": "11",
+        "name": "Office"
+       }
+      ],
+      "timePeriod": "VISIT",
+      "amount": "0"
+     },
+     {
+      "coverageLevel": "INDIVIDUAL",
+      "network": {
+       "indicator": "IN_AND_OUT_OF_NETWORK"
+      },
+      "service": {
+       "value": "A6",
+       "definition": "Psychotherapy",
+       "system": "STC"
+      },
+      "placesOfService": [
+       {
+        "code": "11",
+        "name": "Office"
+       }
+      ],
+      "timePeriod": "VISIT",
+      "amount": "0"
+     },
+     {
+      "coverageLevel": "INDIVIDUAL",
+      "network": {
+       "indicator": "IN_NETWORK"
+      },
+      "service": {
+       "value": "A6",
+       "definition": "Psychotherapy",
+       "system": "STC"
+      },
+      "messages": [
+       "ABLETO FULLY FUNDED"
+      ],
+      "placesOfService": [
+       {
+        "code": "11",
+        "name": "Office"
+       }
+      ],
+      "timePeriod": "VISIT",
+      "amount": "0"
+     }
+    ],
+    "deductible": [
+     {
+      "coverageLevel": "FAMILY",
+      "network": {
+       "indicator": "IN_NETWORK"
+      },
+      "service": {
+       "value": "30",
+       "definition": "Health Benefit Plan Coverage",
+       "system": "STC"
+      },
+      "messages": [
+       "HIGHEST BENEFIT",
+       "DEDUCTIBLE IS MET WHEN FAMILY AMOUNT IS SATISFIED"
+      ],
+      "timePeriod": "CALENDAR_YEAR",
+      "amount": "0"
+     },
+     {
+      "coverageLevel": "FAMILY",
+      "network": {
+       "indicator": "IN_NETWORK"
+      },
+      "service": {
+       "value": "30",
+       "definition": "Health Benefit Plan Coverage",
+       "system": "STC"
+      },
+      "messages": [
+       "HIGHEST BENEFIT",
+       "DEDUCTIBLE IS MET WHEN FAMILY AMOUNT IS SATISFIED"
+      ],
+      "timePeriod": "YEAR_TO_DATE",
+      "amount": "0"
+     },
+     {
+      "coverageLevel": "FAMILY",
+      "network": {
+       "indicator": "IN_NETWORK"
+      },
+      "service": {
+       "value": "30",
+       "definition": "Health Benefit Plan Coverage",
+       "system": "STC"
+      },
+      "messages": [
+       "HIGHEST BENEFIT",
+       "DEDUCTIBLE IS MET WHEN FAMILY AMOUNT IS SATISFIED"
+      ],
+      "timePeriod": "REMAINING",
+      "amount": "0"
+     },
+     {
+      "coverageLevel": "FAMILY",
+      "network": {
+       "indicator": "IN_AND_OUT_OF_NETWORK"
+      },
+      "service": {
+       "value": "30",
+       "definition": "Health Benefit Plan Coverage",
+       "system": "STC"
+      },
+      "messages": [
+       "DEDUCTIBLE IS MET WHEN FAMILY AMOUNT IS SATISFIED"
+      ],
+      "timePeriod": "YEAR_TO_DATE",
+      "amount": "3200"
+     },
+     {
+      "coverageLevel": "FAMILY",
+      "network": {
+       "indicator": "IN_NETWORK"
+      },
+      "service": {
+       "value": "30",
+       "definition": "Health Benefit Plan Coverage",
+       "system": "STC"
+      },
+      "messages": [
+       "DEDUCTIBLE IS MET WHEN FAMILY AMOUNT IS SATISFIED"
+      ],
+      "timePeriod": "CALENDAR_YEAR",
+      "amount": "3200"
+     },
+     {
+      "coverageLevel": "FAMILY",
+      "network": {
+       "indicator": "IN_NETWORK"
+      },
+      "service": {
+       "value": "30",
+       "definition": "Health Benefit Plan Coverage",
+       "system": "STC"
+      },
+      "messages": [
+       "DEDUCTIBLE IS MET WHEN FAMILY AMOUNT IS SATISFIED"
+      ],
+      "timePeriod": "REMAINING",
+      "amount": "0"
+     },
+     {
+      "coverageLevel": "FAMILY",
+      "network": {
+       "indicator": "OUT_OF_NETWORK"
+      },
+      "service": {
+       "value": "30",
+       "definition": "Health Benefit Plan Coverage",
+       "system": "STC"
+      },
+      "messages": [
+       "DEDUCTIBLE IS MET WHEN FAMILY AMOUNT IS SATISFIED"
+      ],
+      "timePeriod": "CALENDAR_YEAR",
+      "amount": "5000"
+     },
+     {
+      "coverageLevel": "FAMILY",
+      "network": {
+       "indicator": "OUT_OF_NETWORK"
+      },
+      "service": {
+       "value": "30",
+       "definition": "Health Benefit Plan Coverage",
+       "system": "STC"
+      },
+      "messages": [
+       "DEDUCTIBLE IS MET WHEN FAMILY AMOUNT IS SATISFIED"
+      ],
+      "timePeriod": "REMAINING",
+      "amount": "1800"
+     },
+     {
+      "coverageLevel": "INDIVIDUAL",
+      "network": {
+       "indicator": "IN_NETWORK"
+      },
+      "service": {
+       "value": "A6",
+       "definition": "Psychotherapy",
+       "system": "STC"
+      },
+      "timePeriod": "VISIT",
+      "amount": "0"
+     },
+     {
+      "coverageLevel": "FAMILY",
+      "network": {
+       "indicator": "IN_NETWORK"
+      },
+      "service": {
+       "value": "A6",
+       "definition": "Psychotherapy",
+       "system": "STC"
+      },
+      "messages": [
+       "ABLETO FULLY FUNDED"
+      ],
+      "timePeriod": "CALENDAR_YEAR",
+      "amount": "0"
+     }
+    ],
+    "outOfPocket": [
+     {
+      "coverageLevel": "FAMILY",
+      "insuranceType": "COMMERCIAL",
+      "network": {
+       "indicator": "IN_NETWORK"
+      },
+      "service": {
+       "value": "30",
+       "definition": "Health Benefit Plan Coverage",
+       "system": "STC"
+      },
+      "messages": [
+       "HIGHEST BENEFIT",
+       "OOP MAXIMUM IS MET WHEN FAMILY AMOUNT IS SATISFIED"
+      ],
+      "timePeriod": "CALENDAR_YEAR",
+      "amount": "0"
+     },
+     {
+      "coverageLevel": "FAMILY",
+      "insuranceType": "COMMERCIAL",
+      "network": {
+       "indicator": "IN_NETWORK"
+      },
+      "service": {
+       "value": "30",
+       "definition": "Health Benefit Plan Coverage",
+       "system": "STC"
+      },
+      "messages": [
+       "HIGHEST BENEFIT",
+       "OOP MAXIMUM IS MET WHEN FAMILY AMOUNT IS SATISFIED"
+      ],
+      "timePeriod": "YEAR_TO_DATE",
+      "amount": "0"
+     },
+     {
+      "coverageLevel": "FAMILY",
+      "insuranceType": "COMMERCIAL",
+      "network": {
+       "indicator": "IN_NETWORK"
+      },
+      "service": {
+       "value": "30",
+       "definition": "Health Benefit Plan Coverage",
+       "system": "STC"
+      },
+      "messages": [
+       "HIGHEST BENEFIT",
+       "OOP MAXIMUM IS MET WHEN FAMILY AMOUNT IS SATISFIED"
+      ],
+      "timePeriod": "REMAINING",
+      "amount": "0"
+     },
+     {
+      "coverageLevel": "FAMILY",
+      "insuranceType": "COMMERCIAL",
+      "network": {
+       "indicator": "IN_AND_OUT_OF_NETWORK"
+      },
+      "service": {
+       "value": "30",
+       "definition": "Health Benefit Plan Coverage",
+       "system": "STC"
+      },
+      "messages": [
+       "OOP MAXIMUM IS MET WHEN FAMILY AMOUNT IS SATISFIED"
+      ],
+      "timePeriod": "YEAR_TO_DATE",
+      "amount": "5555.16"
+     },
+     {
+      "coverageLevel": "FAMILY",
+      "insuranceType": "COMMERCIAL",
+      "network": {
+       "indicator": "OUT_OF_NETWORK"
+      },
+      "service": {
+       "value": "30",
+       "definition": "Health Benefit Plan Coverage",
+       "system": "STC"
+      },
+      "messages": [
+       "OOP MAXIMUM IS MET WHEN FAMILY AMOUNT IS SATISFIED"
+      ],
+      "timePeriod": "CALENDAR_YEAR",
+      "amount": "15500"
+     },
+     {
+      "coverageLevel": "FAMILY",
+      "insuranceType": "COMMERCIAL",
+      "network": {
+       "indicator": "IN_NETWORK"
+      },
+      "service": {
+       "value": "30",
+       "definition": "Health Benefit Plan Coverage",
+       "system": "STC"
+      },
+      "messages": [
+       "OOP MAXIMUM IS MET WHEN FAMILY AMOUNT IS SATISFIED"
+      ],
+      "timePeriod": "CALENDAR_YEAR",
+      "amount": "6850"
+     },
+     {
+      "coverageLevel": "FAMILY",
+      "insuranceType": "COMMERCIAL",
+      "network": {
+       "indicator": "IN_NETWORK"
+      },
+      "service": {
+       "value": "30",
+       "definition": "Health Benefit Plan Coverage",
+       "system": "STC"
+      },
+      "messages": [
+       "OOP MAXIMUM IS MET WHEN FAMILY AMOUNT IS SATISFIED"
+      ],
+      "timePeriod": "REMAINING",
+      "amount": "1294.84"
+     },
+     {
+      "coverageLevel": "FAMILY",
+      "insuranceType": "COMMERCIAL",
+      "network": {
+       "indicator": "OUT_OF_NETWORK"
+      },
+      "service": {
+       "value": "30",
+       "definition": "Health Benefit Plan Coverage",
+       "system": "STC"
+      },
+      "messages": [
+       "OOP MAXIMUM IS MET WHEN FAMILY AMOUNT IS SATISFIED"
+      ],
+      "timePeriod": "REMAINING",
+      "amount": "9944.84"
+     }
+    ],
+    "limitations": [
+     {
+      "coverageLevel": "INDIVIDUAL",
+      "network": {
+       "indicator": "IN_NETWORK"
+      },
+      "service": {
+       "value": "A6",
+       "definition": "Psychotherapy",
+       "system": "STC"
+      },
+      "messages": [
+       "ABLETO PARTIALLY FUNDED"
+      ],
+      "timePeriod": "VISIT",
+      "amount": "0"
+     },
+     {
+      "coverageLevel": "INDIVIDUAL",
+      "network": {
+       "indicator": "IN_NETWORK"
+      },
+      "service": {
+       "value": "A6",
+       "definition": "Psychotherapy",
+       "system": "STC"
+      },
+      "messages": [
+       "HIGHEST BENEFIT"
+      ],
+      "timePeriod": "VISIT",
+      "amount": "0"
+     },
+     {
+      "coverageLevel": "INDIVIDUAL",
+      "network": {
+       "indicator": "IN_NETWORK"
+      },
+      "service": {
+       "value": "A6",
+       "definition": "Psychotherapy",
+       "system": "STC"
+      },
+      "messages": [
+       "ABLETO FULLY FUNDED"
+      ],
+      "timePeriod": "VISIT",
+      "amount": "0"
+     },
+     {
+      "coverageLevel": "INDIVIDUAL",
+      "network": {
+       "indicator": "IN_NETWORK"
+      },
+      "service": {
+       "value": "A6",
+       "definition": "Psychotherapy",
+       "system": "STC"
+      },
+      "timePeriod": "VISIT",
+      "amount": "0"
+     },
+     {
+      "coverageLevel": "INDIVIDUAL",
+      "network": {
+       "indicator": "IN_NETWORK"
+      },
+      "service": {
+       "value": "A6",
+       "definition": "Psychotherapy",
+       "system": "STC"
+      },
+      "messages": [
+       "ADDITIONAL COVERED PER OCCURRENCE",
+       "ABLETO PARTIALLY FUNDED"
+      ],
+      "timePeriod": "VISIT",
+      "amount": "0"
+     },
+     {
+      "coverageLevel": "INDIVIDUAL",
+      "network": {
+       "indicator": "IN_NETWORK"
+      },
+      "service": {
+       "value": "A6",
+       "definition": "Psychotherapy",
+       "system": "STC"
+      },
+      "messages": [
+       "ADDITIONAL COVERED PER OCCURRENCE"
+      ],
+      "timePeriod": "VISIT",
+      "amount": "0"
+     },
+     {
+      "coverageLevel": "INDIVIDUAL",
+      "network": {
+       "indicator": "IN_NETWORK"
+      },
+      "service": {
+       "value": "A6",
+       "definition": "Psychotherapy",
+       "system": "STC"
+      },
+      "messages": [
+       "ADDITIONAL COVERED PER OCCURRENCE",
+       "HIGHEST BENEFIT"
+      ],
+      "timePeriod": "VISIT",
+      "amount": "0"
+     },
+     {
+      "coverageLevel": "INDIVIDUAL",
+      "network": {
+       "indicator": "IN_NETWORK"
+      },
+      "service": {
+       "value": "A6",
+       "definition": "Psychotherapy",
+       "system": "STC"
+      },
+      "messages": [
+       "ADDITIONAL COVERED PER OCCURRENCE",
+       "ABLETO FULLY FUNDED"
+      ],
+      "timePeriod": "VISIT",
+      "amount": "0"
+     }
+    ],
+    "healthCareFacility": [
+     {
+      "coverageLevel": "INDIVIDUAL",
+      "network": {
+       "indicator": "IN_AND_OUT_OF_NETWORK"
+      },
+      "relatedEntities": [
+       {
+        "name": {
+         "organization": "NEW YORK MEDICAL BEHAVIORAL HEALTH SERVICES"
+        },
+        "type": "PROVIDER",
+        "npi": "1235600834"
+       }
+      ]
+     }
+    ]
+   }
+  }
+ ],
+ "id": "ec_01a11536-9c75-7519-980a-9096d70cb84b",
+ "eligibilitySearchId": "01a11536-9c76-7545-9e1a-89bac104fb36"
+}

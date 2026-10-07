@@ -103,3 +103,43 @@ async def test_portal_agent_drives_real_chromium(portal_site, tmp_path):
     assert "s3cret!" not in transcript and "dr_office" not in transcript
     assert "Refused" in transcript
     assert (tmp_path / "runs" / "job1.png").exists()
+
+
+def test_dependent_request_matches_stedi_shape(settings):
+    s = settings.model_copy(update={"clinic_npi": "1999999984", "clinic_name": "Provider Name"})
+    body = StediEligibilityClient(s).build_request({
+        "payer_id": "87726", "member_id": "UHC202649", "first_name": "Jane", "last_name": "Doe",
+        "dob": "1952-11-21", "subscriber_first_name": "John", "subscriber_last_name": "Doe"})
+    assert body["subscriber"] == {"memberId": "UHC202649", "name": {"person": {"firstName": "John", "lastName": "Doe"}}}
+    assert body["dependent"] == {"name": {"person": {"firstName": "Jane", "lastName": "Doe"}}, "dateOfBirth": "1952-11-21"}
+    assert body["provider"] == {"name": {"organization": "Provider Name"}, "npi": "1999999984"}
+
+
+def test_old_database_is_migrated_and_gets_demo_dependent(tmp_path):
+    import sqlite3
+
+    from relayiq.db import Database, seed
+    path = tmp_path / "old.db"
+    con = sqlite3.connect(path)  # database created before the subscriber columns existed
+    con.execute("CREATE TABLE patients (id TEXT PRIMARY KEY, first_name TEXT, last_name TEXT, dob TEXT, "
+                "phone TEXT UNIQUE, email TEXT, payer_id TEXT, payer_name TEXT, member_id TEXT, "
+                "group_number TEXT, pcp_provider_id TEXT, preferred_language TEXT DEFAULT 'en')")
+    con.execute("INSERT INTO patients VALUES ('pt_1001','John','Doe','1980-04-12','+15555550101','','87726',"
+                "'UnitedHealthcare','X','','prv_chen','en')")
+    con.commit()
+    con.close()
+    db = Database(path)
+    seed(db)
+    jane = db.one("SELECT * FROM patients WHERE id='pt_1004'")
+    assert jane["member_id"] == "UHC202649" and jane["subscriber_first_name"] == "John"
+
+
+def test_parses_real_stedi_271_for_dependent_active_out_of_network():
+    """Real test-mode response from Stedi/UnitedHealthcare (Stedi's published mock member)."""
+    from pathlib import Path
+    resp = json.loads((Path(__file__).parent / "fixtures" / "stedi_uhc_dependent_active.json").read_text())
+    r = parse_eligibility(resp)
+    assert r.status == "active"
+    assert r.plan_name == "CHOICE PLUS"
+    assert any("OUT NETWORK" in n for n in r.notes)
+    assert "Choice Plus" in r.summary and "out network" in r.summary.lower()
