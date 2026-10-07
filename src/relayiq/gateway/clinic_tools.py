@@ -137,6 +137,9 @@ async def get_patient_summary(ctx: CallContext, a: dict) -> dict:
         "FROM appointments a JOIN providers pr ON pr.id = a.provider_id "
         "WHERE a.patient_id=? AND a.status IN ('booked','pending_insurance') ORDER BY a.start",
         (p["id"],))
+    if appts:
+        ctx.note("Upcoming appointments (appointment_id values): " +
+                 "; ".join(f"{spoken_time(x['start'])} with {x['provider']} = {x['id']}" for x in appts))
     pcp = ctx.db.one("SELECT name FROM providers WHERE id=?", (p["pcp_provider_id"],))
     bal = ctx.db.one("SELECT amount_due FROM balances WHERE patient_id=?", (p["id"],))
     return {"ok": True, "name": f"{p['first_name']} {p['last_name']}",
@@ -171,6 +174,10 @@ async def find_open_slots(ctx: CallContext, a: dict) -> dict:
         out.append({**r, "when": spoken_time(r["start"])})
         if len(out) >= 4:
             break
+    if out:
+        # Keep ids across turns: later turns only see text history + the case file
+        ctx.note("Slots offered (use these exact slot_id values): " +
+                 "; ".join(f"{x['when']} with {x['provider']} = {x['id']}" for x in out))
     return {"ok": True, "slots": out, "note": "Offer at most two or three options out loud."}
 
 
@@ -224,8 +231,11 @@ def _latest_check(ctx: CallContext) -> dict | None:
 
 async def book_appointment(ctx: CallContext, a: dict) -> dict:
     slot = ctx.db.one("SELECT * FROM slots WHERE id=?", (a["slot_id"],))
-    if not slot or slot["status"] != "open":
-        return {"ok": False, "message": "That slot is no longer available. Find another one."}
+    if not slot:
+        return {"ok": False, "message": f"Unknown slot_id {a['slot_id']!r}. Use an exact slot_id from the "
+                "'Slots offered' line in the case file (or call find_open_slots again). Do not invent ids."}
+    if slot["status"] != "open":
+        return {"ok": False, "message": "That slot was just taken. Find another one."}
     check = _latest_check(ctx)
     if check is None:
         raise GatewayDenied("Insurance has not been verified on this call. Call verify_insurance "
@@ -335,7 +345,7 @@ async def transfer_to_agent(ctx: CallContext, a: dict) -> dict:
         return {"ok": False, "message": f"Unknown agent {target}. Options: {registry.routable_names(ctx)}"}
     ctx.handoff_to = target
     ctx.handoff_note = a["reason"]
-    return {"ok": True, "message": f"Handing off to {target}. Say one short sentence, then stop."}
+    return {"ok": True, "message": f"Handed off to {target}. Do not say anything more."}
 
 
 async def escalate_to_human(ctx: CallContext, a: dict) -> dict:

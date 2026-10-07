@@ -59,3 +59,31 @@ async def test_ledger_masks_phi(ctx):
                            {"first_name": "John", "last_name": "Doe", "date_of_birth": "1980-04-12"})
     row = p.db.one("SELECT args FROM ledger WHERE tool='verify_identity'")
     assert "1980-04-12" not in row["args"]
+
+
+async def test_offered_slot_ids_survive_across_turns_and_bad_ids_are_explained(ctx):
+    p, c = ctx
+    await p.gateway.invoke(c, "front_desk", "verify_identity",
+                           {"first_name": "John", "last_name": "Doe", "date_of_birth": "1980-04-12"})
+    slots = (await p.gateway.invoke(c, "scheduling", "find_open_slots", {"provider_name": "Chen"}))["slots"]
+    offered = next(f for f in c.case_file if f.startswith("Slots offered"))
+    assert slots[0]["id"] in offered  # later turns (text-only history) can still see the real id
+    await p.gateway.invoke(c, "scheduling", "verify_insurance", {})
+    bad = await p.gateway.invoke(c, "scheduling", "book_appointment",
+                                 {"slot_id": "slot_chen_thu_0830", "reason": "f/u", "caller_confirmed": True})
+    assert bad["ok"] is False and "Do not invent ids" in bad["message"]
+
+
+async def test_clearinghouse_error_is_recorded(ctx, settings):
+    import httpx
+    from relayiq.insurance.eligibility import StediEligibilityClient
+    p, c = ctx
+    s = settings.model_copy(update={"stedi_api_key": "test_x"})
+    p.insurance.api = StediEligibilityClient(s, httpx.AsyncClient(transport=httpx.MockTransport(
+        lambda r: httpx.Response(400, json={"errors": [{"description": "Invalid NPI"}]}))))
+    c.services = p.services()
+    await p.gateway.invoke(c, "front_desk", "verify_identity",
+                           {"first_name": "John", "last_name": "Doe", "date_of_birth": "1980-04-12"})
+    res = await p.gateway.invoke(c, "scheduling", "verify_insurance", {})
+    row = p.db.one("SELECT summary, details FROM insurance_checks WHERE id=?", (res["check_id"],))
+    assert "HTTP 400" in row["summary"] and "Invalid NPI" in row["details"]

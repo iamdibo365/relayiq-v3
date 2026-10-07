@@ -46,9 +46,11 @@ class InsuranceService:
     async def verify(self, ctx: CallContext | None, patient: dict, reason: str = "office visit") -> dict:
         check_id = "ins_" + uuid.uuid4().hex[:8]
         api_status = None
+        api_detail: dict = {}
         if self.api.configured:
             res = await self.api.check(patient)
             api_status = res.status
+            api_detail = {"api_summary": res.summary, "api_response": res.raw}
             if res.status in ("active", "inactive"):
                 self._record(check_id, patient, "clearinghouse_api", res.status, res.summary, res.raw)
                 return {"check_id": check_id, "status": res.status, "summary": res.summary,
@@ -58,7 +60,7 @@ class InsuranceService:
         creds = self.portal_credentials(patient["payer_id"])
         if self.s.portal_automation_enabled and self.portal and creds:
             self._record(check_id, patient, "payer_portal", "pending",
-                         "Checking the payer portal", {"api_status": api_status}, done=False)
+                         "Checking the payer portal", {"api_status": api_status, **api_detail}, done=False)
             self.db.execute("INSERT INTO portal_jobs VALUES (?,?,?,?,?,?,?,?)",
                             (check_id, patient["id"], patient["payer_id"], "running", 0, "{}",
                              now_iso(), None))
@@ -71,10 +73,10 @@ class InsuranceService:
                                "when it's confirmed."}
 
         why = ("no clearinghouse key configured" if not self.api.configured else
-               f"clearinghouse result {api_status}")
+               f"clearinghouse: {api_detail.get('api_summary', api_status)}")
         self._record(check_id, patient, "none", "unverified",
                      f"Could not verify automatically ({why}); staff will verify before the visit",
-                     {"api_status": api_status})
+                     {"api_status": api_status, **api_detail})
         return {"check_id": check_id, "status": "unverified", "method": "none",
                 "summary": "Couldn't verify automatically right now; staff will confirm coverage "
                            "before the visit. Booking is allowed as pending verification."}

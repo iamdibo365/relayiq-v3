@@ -131,9 +131,16 @@ async def main() -> None:
                     "track": "inbound", "payload": base64.b64encode(f).decode()}})
                 await asyncio.sleep(0.02)
 
-        async def wait_agent_done(timeout=25.0):
+        async def wait_agent_done(turn: int | None = None, timeout=30.0):
+            """Like a real caller: wait for the agent to START answering, then for it to finish.
+            (Silence while the agent is thinking is not the end of its turn.)"""
             start = time.monotonic()
-            while time.monotonic() - start < timeout:
+            while time.monotonic() - start < timeout:  # 1) wait for the reply to begin
+                started = (turn in first_audio_after) if turn is not None else len(received) > 0
+                if started:
+                    break
+                await stream(silence_mulaw(100))
+            while time.monotonic() - start < timeout:  # 2) wait for it to finish playing
                 idle = time.monotonic() - last_agent_audio
                 if idle > 1.8 and time.monotonic() > playback_until + 0.5:
                     return
@@ -145,7 +152,7 @@ async def main() -> None:
             print(f"\nCALLER: {line}")
             await stream(audio)
             turn_idx, turn_ended_at = i, time.monotonic()
-            await wait_agent_done()
+            await wait_agent_done(turn=i)
             lat = first_audio_after.get(i)
             print(f"   agent replied; first audio {lat*1000:.0f} ms after caller stopped" if lat
                   else "   (no agent audio this turn)")

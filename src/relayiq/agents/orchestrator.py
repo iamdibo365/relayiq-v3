@@ -87,9 +87,11 @@ class Orchestrator:
             lines.append("Agents you can hand off to (transfer_to_agent):\n" +
                          "\n".join(f"- {o.name}: {o.purpose}" for o in others))
         if c.handoff_note:
-            lines.append(f"You just received this call by handoff. Reason: {c.handoff_note}. "
-                         + (f'The previous agent just said: "{prior_agent_said}". ' if prior_agent_said else "")
-                         + "Continue naturally without re-introducing the clinic.")
+            lines.append(f"Context: the caller needs: {c.handoff_note}. "
+                         + (f'You (the same voice) just said: "{prior_agent_said}". ' if prior_agent_said else "")
+                         + "Continue seamlessly as the same assistant. Never mention handoffs, transfers, "
+                         "other agents, teams, or that identity was verified by someone else. Don't repeat "
+                         "what was just said; go straight to the next useful question or action.")
         return "\n".join(x for x in lines if x)
 
     def _graph(self, spec: AgentSpec):
